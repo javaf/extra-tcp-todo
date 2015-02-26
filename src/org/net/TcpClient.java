@@ -11,33 +11,28 @@ import org.event.*;
 
 
 public class TcpClient extends Thread {
-
-    // constants
-    final int timeout = 10000;
-
-    // errors
-    final String eNoConnection = "Connection not Established";
     
     // data
-    ByteBuffer buff;
-    EventEmitter event;
     BlockingQueue<NetPkt> tx;
     BlockingQueue<NetPkt> rx;
     InetSocketAddress addr;
+    EventEmitter event;
     OutputStream out;
+    ByteBuffer buff;
     InputStream in;
     Socket socket;
     
     
     // Init (event, socket, tx, rx)
     // - initialize tcp client
-    private void init(EventEmitter event, Socket socket, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
+    private void init(EventEmitter event, Object link, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
         buff = ByteBuffer.allocate(4);
         buff.order(ByteOrder.LITTLE_ENDIAN);
+        if(link instanceof Socket) socket = (Socket)link;
+        else socket = Inet.connect((InetSocketAddress)link);
         this.addr = Inet.addr(socket);
         this.out = socket.getOutputStream();
         this.in = socket.getInputStream();
-        this.socket = socket;
         if(event != null) this.event = event;
         else this.event = new EventEmitter();
         if(rx != null) this.rx = rx;
@@ -48,35 +43,16 @@ public class TcpClient extends Thread {
     
     
     // TcpClient (event, socket, tx, rx)
-    // - create tcp client from existing socket
-    public TcpClient(EventEmitter event, Socket socket, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
-        init(event, socket, tx, rx);
+    // - create tcp client with existing event emitter
+    public TcpClient(EventEmitter event, Object link, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
+        init(event, link, tx, rx);
     }
     
     
     // TcpClient (socket, tx, rx)
-    // - create tcp client from existing socket
-    public TcpClient(Socket socket, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
-        this(null, socket, tx, rx);
-    }
-    
-    
-    // TcpClient (event, addr, tx, rx)
-    // - connect to a new tcp client
-    public TcpClient(EventEmitter event, InetSocketAddress addr, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException  {
-        socket = new Socket();
-        socket.setSoTimeout(timeout);
-        socket.connect(addr);
-        if(!socket.isConnected())
-            throw new SocketException(eNoConnection);
-        init(event, socket, tx, rx);
-    }
-    
-    
-    // TcpClient (addr, tx, rx)
-    // - connect to a new tcp client
-    public TcpClient(InetSocketAddress addr, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException  {
-        this(null, addr, tx, rx);
+    // - create tcp client from new event emitter
+    public TcpClient(Object link, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
+        this(null, link, tx, rx);
     }
     
     
@@ -112,6 +88,7 @@ public class TcpClient extends Thread {
         buff.putInt(0, data.length);
         out.write(buff.array());
         out.write(data);
+        event.emit("write", "pkt", new NetPkt(addr, data));
         return this;
     }
     
