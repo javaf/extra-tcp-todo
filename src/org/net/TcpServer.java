@@ -106,7 +106,7 @@ public class TcpServer extends Thread {
                 clients.put(pkt.addr, client);
                 event.emit("connect", "client", client);
             }
-            // write
+            // write how?
             
         }
     }
