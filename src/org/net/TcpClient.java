@@ -21,8 +21,8 @@ public class TcpClient extends Thread {
     // data
     ByteBuffer buff;
     EventEmitter event;
-    BlockingQueue<TcpPkt> tx;
-    BlockingQueue<TcpPkt> rx;
+    BlockingQueue<NetPkt> tx;
+    BlockingQueue<NetPkt> rx;
     InetSocketAddress addr;
     OutputStream out;
     InputStream in;
@@ -31,7 +31,7 @@ public class TcpClient extends Thread {
     
     // Init (event, socket, tx, rx)
     // - initialize tcp client
-    private void init(EventEmitter event, Socket socket, BlockingQueue<TcpPkt> tx, BlockingQueue<TcpPkt> rx) throws IOException {
+    private void init(EventEmitter event, Socket socket, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
         buff = ByteBuffer.allocate(4);
         buff.order(ByteOrder.LITTLE_ENDIAN);
         this.addr = Inet.addr(socket);
@@ -49,21 +49,21 @@ public class TcpClient extends Thread {
     
     // TcpClient (event, socket, tx, rx)
     // - create tcp client from existing socket
-    public TcpClient(EventEmitter event, Socket socket, BlockingQueue<TcpPkt> tx, BlockingQueue<TcpPkt> rx) throws IOException {
+    public TcpClient(EventEmitter event, Socket socket, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
         init(event, socket, tx, rx);
     }
     
     
     // TcpClient (socket, tx, rx)
     // - create tcp client from existing socket
-    public TcpClient(Socket socket, BlockingQueue<TcpPkt> tx, BlockingQueue<TcpPkt> rx) throws IOException {
+    public TcpClient(Socket socket, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
         this(null, socket, tx, rx);
     }
     
     
     // TcpClient (event, addr, tx, rx)
     // - connect to a new tcp client
-    public TcpClient(EventEmitter event, InetSocketAddress addr, BlockingQueue<TcpPkt> tx, BlockingQueue<TcpPkt> rx) throws IOException  {
+    public TcpClient(EventEmitter event, InetSocketAddress addr, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException  {
         socket = new Socket();
         socket.setSoTimeout(timeout);
         socket.connect(addr);
@@ -75,7 +75,7 @@ public class TcpClient extends Thread {
     
     // TcpClient (addr, tx, rx)
     // - connect to a new tcp client
-    public TcpClient(InetSocketAddress addr, BlockingQueue<TcpPkt> tx, BlockingQueue<TcpPkt> rx) throws IOException  {
+    public TcpClient(InetSocketAddress addr, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException  {
         this(null, addr, tx, rx);
     }
     
@@ -89,7 +89,7 @@ public class TcpClient extends Thread {
                 in.read(buff.array());
                 byte[] data = new byte[buff.getInt(0)];
                 in.read(data);
-                TcpPkt pkt = new TcpPkt(addr, data);
+                NetPkt pkt = new NetPkt(addr, data);
                 rx.put(pkt);
                 event.emit("read", "pkt", pkt);
             }
@@ -108,7 +108,7 @@ public class TcpClient extends Thread {
     // Write (data)
     // - write data to client
     public TcpClient write(byte[] data) throws InterruptedException, IOException {
-        if(tx != null) { tx.put(new TcpPkt(addr, data)); return this; }
+        if(tx != null) { tx.put(new NetPkt(addr, data)); return this; }
         buff.putInt(0, data.length);
         out.write(buff.array());
         out.write(data);
