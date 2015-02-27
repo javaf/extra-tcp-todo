@@ -13,13 +13,10 @@ import org.event.*;
 public class TcpClient extends Thread {
     
     // data
-    BlockingQueue<NetPkt> tx;
-    BlockingQueue<NetPkt> rx;
     InetSocketAddress addr;
     EventEmitter event;
-    OutputStream out;
-    ByteBuffer buff;
-    InputStream in;
+    SocketWriter out;
+    SocketReader in;
     Socket socket;
     
     
