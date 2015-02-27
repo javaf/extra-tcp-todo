@@ -68,7 +68,7 @@ public class SocketReader extends Thread {
     public void close() throws IOException {
         socket.shutdownInput();
         in.close();
-        event.emit("close", "addr", addr);
+        event.emit("close-read", "addr", addr);
     }
     
     
