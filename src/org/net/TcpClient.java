@@ -56,20 +56,25 @@ public class TcpClient extends Thread {
     }
     
     
+    // ReadAction ()
+    // - read incoming packets
+    private void readAction() throws IOException, InterruptedException {
+        while(!socket.isClosed()) {
+            in.read(buff.array());
+            byte[] data = new byte[buff.getInt(0)];
+            in.read(data);
+            NetPkt pkt = new NetPkt(addr, data);
+            rx.put(pkt);
+            event.emit("read", "pkt", pkt);
+        }
+    }
+    
+    
     // Run ()
     // - receive data from client
     @Override
     public void run() {
-        try {
-            while(!socket.isClosed()) {
-                in.read(buff.array());
-                byte[] data = new byte[buff.getInt(0)];
-                in.read(data);
-                NetPkt pkt = new NetPkt(addr, data);
-                rx.put(pkt);
-                event.emit("read", "pkt", pkt);
-            }
-        }
+        try { readAction(); }
         catch(IOException | InterruptedException e) { event.emit("read-error", "err", e, "socket", socket); }
     }
     
@@ -83,13 +88,20 @@ public class TcpClient extends Thread {
     
     // Write (data)
     // - write data to client
-    public TcpClient write(byte[] data) throws InterruptedException, IOException {
-        if(tx != null) { tx.put(new NetPkt(addr, data)); return this; }
+    public TcpClient write(byte[] data, boolean now) throws InterruptedException, IOException {
+        if(tx != null && !now) { tx.put(new NetPkt(addr, data)); return this; }
         buff.putInt(0, data.length);
         out.write(buff.array());
         out.write(data);
         event.emit("write", "pkt", new NetPkt(addr, data));
         return this;
+    }
+    
+    
+    // Write (data)
+    // - write data to client
+    public TcpClient write(byte[] data) throws InterruptedException, IOException {
+        return write(data, false);
     }
     
     
@@ -117,8 +129,10 @@ public class TcpClient extends Thread {
     // Close ()
     // - close client socket
     public void close() throws IOException {
-        socket.close();
+        socket.shutdownInput();
+        socket.shutdownOutput();
         out.close();
         in.close();
+        socket.close();
     }
 }

@@ -84,14 +84,47 @@ public class TcpServer extends Thread {
     }
     
     
+    // Connect (addr)
+    // - connect to a client
+    private TcpClient connect(InetSocketAddress addr) throws IOException {
+        if(clients.containsKey(addr)) return clients.get(addr);
+        TcpClient client = new TcpClient(event, addr, tx, rx);
+        clients.put(addr, client);
+        event.emit("connect", "client", client);
+        return client;
+    }
+    
+    
+    // Disconnect (addr)
+    // - disconnect a client
+    private void disconnect(InetSocketAddress addr) throws IOException {
+        if(!clients.containsKey(addr)) return;
+        clients.get(addr).close();
+        clients.remove(addr);
+        event.emit("disconnect", "addr", addr);
+    }
+    
+    
+    // DisconnectCheck (addr)
+    // - removes a client if it disconnected
+    private void disconnectCheck(InetSocketAddress addr) throws IOException {
+        if(!clients.containsKey(addr)) return;
+        if(clients.get(addr).socket().isConnected()) return;
+        disconnect(addr);
+    }
+    
+    
     // AcceptAction ()
     // - accept incoming connections
     public void acceptAction() throws IOException {
         while(!socket.isClosed()) {
-            Socket sckt = socket.accept();
-            TcpClient client = new TcpClient(event, sckt, tx, rx);
-            clients.put(Inet.addr(sckt), client);
-            event.emit("accept", "client", client);
+            try {
+                Socket sckt = socket.accept();
+                TcpClient client = new TcpClient(event, sckt, tx, rx);
+                clients.put(Inet.addr(sckt), client);
+                event.emit("accept", "client", client);
+            }
+            catch(Exception e) {}
         }
     }
     
@@ -99,24 +132,48 @@ public class TcpServer extends Thread {
     // WriteAction ()
     // - write pending packets to clients
     public void writeAction() throws IOException, InterruptedException {
+        NetPkt pkt = null;
         while(!socket.isClosed()) {
-            NetPkt pkt = tx.take();
-            if(!clients.containsKey(pkt.addr)) {
-                TcpClient client = new TcpClient(pkt.addr, tx, rx);
-                clients.put(pkt.addr, client);
-                event.emit("connect", "client", client);
+            try {
+                pkt = tx.take();
+                connect(pkt.addr).write(pkt.data, true);
             }
-            // write how?
-            
+            catch(InterruptedException e) {}
+            catch(IOException e) {
+                event.emit("write-error", "pkt", pkt);
+                if(pkt != null) disconnectCheck(pkt.addr);
+            }
         }
     }
     
+    
+    // Run ()
+    // - accept incoming clients / send pending data
     @Override
     public void run() {
         try {
             acceptAction();
         }
         catch(Exception e) { System.out.println(e); }
+    }
+    
+    
+    // Read ()
+    // - read data from client (blocking)
+    public NetPkt read() throws InterruptedException {
+        return rx.take();
+    }
+    
+    public NetPkt write(NetPkt pkt) {
+        
+    }
+    
+    public EventEmitter event() {
+        return event;
+    }
+    
+    public InetSocketAddress addr() {
+        return addr;
     }
     
     public void close() throws IOException {
