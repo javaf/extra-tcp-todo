@@ -29,14 +29,14 @@ public class Inet {
     // Addr (socket)
     // - get socket address from socket
     public static InetSocketAddress addr(Socket socket) {
-        return new InetSocketAddress(socket.getInetAddress(), socket.getPort());
+        return (InetSocketAddress)socket.getRemoteSocketAddress();
     }
 
 
     // Addr (socket)
     // - get socket address from server-socket
     public static InetSocketAddress addr(ServerSocket socket) {
-        return new InetSocketAddress(socket.getInetAddress(), socket.getLocalPort());
+        return (InetSocketAddress)socket.getLocalSocketAddress();
     }
 
 
