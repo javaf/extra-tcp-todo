@@ -17,6 +17,16 @@ public class Inet {
 
 
     // Addr (addr)
+    // - get socket address from object
+    public static InetSocketAddress addr(Object link) {
+        if(link instanceof ServerSocket) return addr((ServerSocket)link);
+        if(link instanceof Socket) return addr((Socket)link);
+        if(link instanceof String) return addr((String)link);
+        return (InetSocketAddress)link;
+    }
+
+
+    // Addr (addr)
     // - get socket address from string
     public static InetSocketAddress addr(String addr) {
         String[] parts = addr.split(":");

@@ -9,7 +9,7 @@ import org.event.*;
 
 
 
-public class TcpClient {
+public class TcpClient extends Thread {
     
     // data
     InetSocketAddress addr;
@@ -79,10 +79,10 @@ public class TcpClient {
     
     // Start ()
     // - start read and write threads
-    public TcpClient start() {
+    @Override
+    public void start() {
         out.start();
         in.start();
-        return this;
     }
     
     

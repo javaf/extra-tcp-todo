@@ -14,103 +14,120 @@ public class TcpServer extends Thread {
 
     // data
     Map<InetSocketAddress, TcpClient> clients;
-    BlockingQueue<NetPkt> tx;
-    BlockingQueue<NetPkt> rx;
+    BlockingQueue<NetPkt> rxPkts;
     InetSocketAddress addr;
     ServerSocket socket;
     EventEmitter event;
-    boolean txHelper;
-    
-    
-    // Copy (srv)
-    // - copy object data from another object
-    private void copy(TcpServer srv) {
-        this.clients = srv.clients;
-        this.tx = srv.tx;
-        this.rx = srv.rx;
-        this.addr = srv.addr;
-        this.socket = srv.socket;
-        this.event = srv.event;
-        this.txHelper = srv.txHelper;
-    }
-    
-    
-    // GetSocket (link)
-    // - get server socket from link
-    private ServerSocket getSocket(Object link) throws IOException {
-        if(link == null) return new ServerSocket();
-        if(link instanceof ServerSocket) return (ServerSocket)link;
-        if(link instanceof Integer) return new ServerSocket((Integer)link);
-        return null;
-    }
-    
-    
-    // Init (event, link, tx, rx)
-    // - initialize tcp server
-    private void init(EventEmitter event, Object link, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
-        // prepare socket
-        socket = getSocket(link);
-        if(socket == null) {
-            copy((TcpServer)link);
-            ((TcpServer)link).txHelper = true;
-            this.start();
-            return;
-        }
-        // init remaining fields
-        if(event != null) this.event = event;
-        else this.event = new EventEmitter();
-        clients = new ConcurrentHashMap<>();
-        addr = Inet.addr(socket);
-        this.tx = tx;
-        this.rx = rx;
-        this.start();
-        // start tx thread if necessary
-        if(tx == null) return;
-        (new TcpServer(event, this, tx, rx)).start();
-    }
     
     
     // TcpServer (event, link, tx, rx)
     // - create tcp server with given event emitter
-    public TcpServer(EventEmitter event, Object link, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
-        init(event, link, tx, rx);
+    public TcpServer(EventEmitter event, Object link, BlockingQueue<NetPkt> rxPkts) throws IOException {
+        clients = new ConcurrentHashMap<>();
+        if(event != null) this.event = event;
+        else this.event = new EventEmitter();
+        if(link instanceof ServerSocket) socket = (ServerSocket)link;
+        else if(link instanceof Integer) socket = new ServerSocket((Integer)link);
+        else socket = new ServerSocket();
+        addr = Inet.addr(socket);
+        this.rxPkts = rxPkts;
     }
     
     
-    // TcpServer (event, link, tx, rx)
-    // - create tcp server with independent event emitter
-    public TcpServer(Object link, BlockingQueue<NetPkt> tx, BlockingQueue<NetPkt> rx) throws IOException {
-        init(null, link, tx, rx);
+    // Event ()
+    // - returns the event emitter
+    public EventEmitter event() {
+        return event;
     }
     
     
-    // Connect (addr)
-    // - connect to a client
-    private TcpClient connect(InetSocketAddress addr) throws IOException {
-        if(clients.containsKey(addr)) return clients.get(addr);
-        TcpClient client = new TcpClient(event, addr, tx, rx);
-        clients.put(addr, client);
-        event.emit("connect", "client", client);
+    // Addr ()
+    // - returns server address
+    public InetSocketAddress addr() {
+        return addr;
+    }
+    
+    
+    // Socket ()
+    // - return server socket
+    public ServerSocket socket() {
+        return socket;
+    }
+    
+    
+    // RxPkts ()
+    // - returns received packet queue
+    public BlockingQueue<NetPkt> rxPkts() {
+        return rxPkts;
+    }
+    
+    
+    // Clients ()
+    // - returns clients map
+    public Map<InetSocketAddress, TcpClient> clients() {
+        return clients;
+    }
+    
+    
+    // Close ()
+    // - closes server and all connections
+    public void close() throws IOException {
+        for(InetSocketAddress adrs : clients.keySet())
+            clients.get(adrs).close();
+        socket.close();
+    }
+    
+    
+    // Read ()
+    // - read data from a client (blocking)
+    public NetPkt read() throws InterruptedException {
+        return rxPkts.take();
+    }
+    
+    
+    // Write ()
+    // - write data to a specific or all clients (null)
+    public TcpServer write(NetPkt pkt) throws InterruptedException {
+        if(pkt.addr() != null) { clients.get(pkt.addr()).write(pkt); return this; }
+        for(InetSocketAddress adrs : clients.keySet())
+            clients.get(adrs).write(pkt);
+        return this;
+    }
+
+    
+    // Add (link)
+    // - add a client
+    public TcpClient add(Object link) throws IOException {
+        InetSocketAddress adrs = Inet.addr(link);
+        if(clients.containsKey(adrs)) return clients.get(adrs);
+        TcpClient client = new TcpClient(event, link, rxPkts);
+        client.start();
+        clients.put(adrs, client);
+        if(link instanceof InetSocketAddress)
+            event.emit("connect", "addr", adrs);
         return client;
     }
     
     
-    // Disconnect (addr)
-    // - disconnect a client
-    private void disconnect(InetSocketAddress addr) throws IOException {
-        if(!clients.containsKey(addr)) return;
-        clients.get(addr).close();
-        clients.remove(addr);
-        event.emit("disconnect", "addr", addr);
+    // Remove (link)
+    // - remove a client
+    public TcpServer remove(Object link) throws IOException {
+        InetSocketAddress adrs = Inet.addr(link);
+        if(!clients.containsKey(adrs)) return this;
+        clients.get(adrs).close();
+        clients.remove(adrs);
+        event.emit("disconnect", "addr", adrs);
+        return this;
     }
     
     
-    // DisconnectCheck (addr)
+    // RemoveCheck (addr)
     // - removes a client if it disconnected
-    private void disconnectCheck(InetSocketAddress addr) throws IOException {
-        if(!clients.containsKey(addr)) return;
-        if(clients.get(addr).socket().isConnected()) return;
-        disconnect(addr);
+    public void removeCheck(Object link) throws IOException {
+        InetSocketAddress adrs = Inet.addr(link);
+        if(!clients.containsKey(adrs)) return;
+        if(clients.get(adrs).socket().isConnected()) return;
+        remove(adrs);
     }
     
     
@@ -119,30 +136,10 @@ public class TcpServer extends Thread {
     public void acceptAction() throws IOException {
         while(!socket.isClosed()) {
             try {
-                Socket sckt = socket.accept();
-                TcpClient client = new TcpClient(event, sckt, tx, rx);
-                clients.put(Inet.addr(sckt), client);
+                TcpClient client = add(socket.accept());
                 event.emit("accept", "client", client);
             }
-            catch(Exception e) {}
-        }
-    }
-    
-    
-    // WriteAction ()
-    // - write pending packets to clients
-    public void writeAction() throws IOException, InterruptedException {
-        NetPkt pkt = null;
-        while(!socket.isClosed()) {
-            try {
-                pkt = tx.take();
-                connect(pkt.addr).write(pkt.data, true);
-            }
-            catch(InterruptedException e) {}
-            catch(IOException e) {
-                event.emit("write-error", "pkt", pkt);
-                if(pkt != null) disconnectCheck(pkt.addr);
-            }
+            catch(Exception e) { event.emit("accept-error", "err", e, "server", this); }
         }
     }
     
@@ -151,34 +148,8 @@ public class TcpServer extends Thread {
     // - accept incoming clients / send pending data
     @Override
     public void run() {
-        try {
-            acceptAction();
-        }
-        catch(Exception e) { System.out.println(e); }
-    }
-    
-    
-    // Read ()
-    // - read data from client (blocking)
-    public NetPkt read() throws InterruptedException {
-        return rx.take();
-    }
-    
-    public NetPkt write(NetPkt pkt) {
-        
-    }
-    
-    public EventEmitter event() {
-        return event;
-    }
-    
-    public InetSocketAddress addr() {
-        return addr;
-    }
-    
-    public void close() throws IOException {
-        socket.close();
-        for(InetSocketAddress clientAddr : clients.keySet())
-            clients.get(clientAddr).close();
+        try { acceptAction(); }
+        catch(IOException e) {}
+        event.emit("unaccept", "server", this);
     }
 }
