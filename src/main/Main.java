@@ -24,7 +24,7 @@ public class Main {
         Thread.sleep(100);
         client.write(new byte[] {1, 2, 3});
         server.write(new byte[] {1, 2, 3, 4});
-        Thread.sleep(100);
+        Thread.sleep(1000);
         client.close();
         in.next();
         in.close();
