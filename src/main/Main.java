@@ -23,6 +23,7 @@ public class Main {
         client.start();
         Thread.sleep(100);
         client.write(new byte[] {1, 2, 3});
+        server.write(new byte[] {1, 2, 3, 4});
         System.out.println(server.clients());
         in.next();
         in.close();

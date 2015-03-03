@@ -85,13 +85,20 @@ public class TcpServer extends Thread {
     }
     
     
-    // Write ()
+    // Write (pkt)
     // - write data to a specific or all clients (null)
     public TcpServer write(NetPkt pkt) throws InterruptedException {
         if(pkt.addr() != null) { clients.get(pkt.addr()).write(pkt); return this; }
         for(InetSocketAddress adrs : clients.keySet())
             clients.get(adrs).write(pkt);
         return this;
+    }
+    
+    
+    // Write (data)
+    // - write data to all clients
+    public TcpServer write(byte[] data) throws InterruptedException {
+        return write(new NetPkt(null, data));
     }
 
     
