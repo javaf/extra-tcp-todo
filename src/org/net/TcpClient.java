@@ -69,10 +69,11 @@ public class TcpClient extends Thread {
     
     // Close ()
     // - close client socket
-    public void close() throws IOException {
+    public void close() {
         out.close();
         in.close();
-        socket.close();
+        try { socket.close(); }
+        catch(IOException e) {}
         event.emit("close", "addr", addr);
     }
     

@@ -71,10 +71,11 @@ public class TcpServer extends Thread {
     
     // Close ()
     // - closes server and all connections
-    public void close() throws IOException {
+    public void close() {
         for(InetSocketAddress adrs : clients.keySet())
             clients.get(adrs).close();
-        socket.close();
+        try { socket.close(); }
+        catch(IOException e) {}
     }
     
     

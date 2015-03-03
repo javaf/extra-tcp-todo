@@ -66,9 +66,12 @@ public class SocketWriter extends Thread {
     
     // Close ()
     // - close socket writer
-    public void close() throws IOException {
-        socket.shutdownOutput();
-        out.close();
+    public void close() {
+        try {
+            socket.shutdownOutput();
+            out.close();
+        }
+        catch(IOException e) {}
         event.emit("close-write", "addr", addr);
     }
     
