@@ -18,6 +18,7 @@ public class SocketReader extends Thread {
     EventEmitter event;
     ByteBuffer buff;
     InputStream in;
+    boolean closed;
     Socket socket;
     
     
@@ -67,12 +68,10 @@ public class SocketReader extends Thread {
     // Close ()
     // - close socket reader
     public void close() {
-        try {
-            socket.shutdownInput();
-            in.close();
-        }
+        if(closed) return;
+        try { socket.shutdownInput(); in.close(); }
         catch(IOException e) {}
-        event.emit("close-read", "addr", addr);
+        closed = true;
     }
     
     
@@ -102,5 +101,6 @@ public class SocketReader extends Thread {
         try { readAction(); }
         catch(IOException | InterruptedException e) {}
         event.emit("disconnect", "addr", addr);
+        close();
     }
 }

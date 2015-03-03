@@ -18,6 +18,7 @@ public class SocketWriter extends Thread {
     EventEmitter event;
     OutputStream out;
     ByteBuffer buff;
+    boolean closed;
     Socket socket;
     
     
@@ -67,12 +68,10 @@ public class SocketWriter extends Thread {
     // Close ()
     // - close socket writer
     public void close() {
-        try {
-            socket.shutdownOutput();
-            out.close();
-        }
+        if(closed) return;
+        try { socket.shutdownOutput(); out.close(); }
         catch(IOException e) {}
-        event.emit("close-write", "addr", addr);
+        closed = true;
     }
     
     
@@ -97,5 +96,6 @@ public class SocketWriter extends Thread {
         try { writeAction(); }
         catch(IOException | InterruptedException e) {}
         event.emit("disconnect", "addr", addr);
+        close();
     }
 }

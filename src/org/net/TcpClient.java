@@ -16,6 +16,7 @@ public class TcpClient extends Thread {
     EventEmitter event;
     SocketWriter out;
     SocketReader in;
+    boolean closed;
     Socket socket;
     
     
@@ -70,11 +71,13 @@ public class TcpClient extends Thread {
     // Close ()
     // - close client socket
     public void close() {
+        if(closed) return;
         out.close();
         in.close();
         try { socket.close(); }
         catch(IOException e) {}
         event.emit("close", "addr", addr);
+        closed = true;
     }
     
     

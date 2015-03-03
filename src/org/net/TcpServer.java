@@ -18,6 +18,7 @@ public class TcpServer extends Thread {
     InetSocketAddress addr;
     ServerSocket socket;
     EventEmitter event;
+    boolean closed;
     
     
     // TcpServer (event, link, tx, rx)
@@ -72,10 +73,13 @@ public class TcpServer extends Thread {
     // Close ()
     // - closes server and all connections
     public void close() {
+        if(closed) return;
         for(InetSocketAddress adrs : clients.keySet())
             clients.get(adrs).close();
         try { socket.close(); }
         catch(IOException e) {}
+        event.emit("close", "server", this);
+        closed = true;
     }
     
     
@@ -143,11 +147,8 @@ public class TcpServer extends Thread {
     // - accept incoming connections
     public void acceptAction() throws IOException {
         while(!socket.isClosed()) {
-            try {
-                TcpClient client = add(socket.accept());
-                event.emit("accept", "addr", client.addr());
-            }
-            catch(Exception e) { event.emit("accept-error", "err", e, "server", this); }
+            TcpClient client = add(socket.accept());
+            event.emit("accept", "addr", client.addr());
         }
     }
     
@@ -158,6 +159,5 @@ public class TcpServer extends Thread {
     public void run() {
         try { acceptAction(); }
         catch(IOException e) {}
-        event.emit("unaccept", "server", this);
     }
 }
