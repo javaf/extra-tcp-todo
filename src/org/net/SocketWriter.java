@@ -26,12 +26,13 @@ public class SocketWriter extends Thread {
     public SocketWriter(EventEmitter event, Socket socket, BlockingQueue<NetPkt> pkts) throws IOException {
         if(pkts != null) this.pkts = pkts;
         else this.pkts = new LinkedBlockingQueue<>();
+        if(event != null) this.event = event;
+        else this.event = new EventEmitter();
         buff = ByteBuffer.allocate(4);
         buff.order(ByteOrder.BIG_ENDIAN);
         out = socket.getOutputStream();
         addr = Inet.addr(socket);
         this.socket = socket;
-        this.event = event;
     }
     
     

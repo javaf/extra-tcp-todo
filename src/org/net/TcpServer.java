@@ -137,7 +137,7 @@ public class TcpServer extends Thread {
         while(!socket.isClosed()) {
             try {
                 TcpClient client = add(socket.accept());
-                event.emit("accept", "client", client);
+                event.emit("accept", "addr", client.addr());
             }
             catch(Exception e) { event.emit("accept-error", "err", e, "server", this); }
         }

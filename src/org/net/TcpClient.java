@@ -24,10 +24,10 @@ public class TcpClient extends Thread {
     public TcpClient(EventEmitter event, Object link, BlockingQueue<NetPkt> rxPkts) throws IOException {
         if(link instanceof Socket) socket = (Socket)link;
         else socket = Inet.connect((InetSocketAddress)link);
-        in = new SocketReader(this.event, socket, rxPkts);
-        out = new SocketWriter(this.event, socket, null);
         if(event != null) this.event = event;
         else this.event = new EventEmitter();
+        in = new SocketReader(this.event, socket, rxPkts);
+        out = new SocketWriter(this.event, socket, null);
         addr = Inet.addr(socket);
     }
     

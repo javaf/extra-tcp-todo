@@ -26,12 +26,13 @@ public class SocketReader extends Thread {
     public SocketReader(EventEmitter event, Socket socket, BlockingQueue<NetPkt> pkts) throws IOException {
         if(pkts != null) this.pkts = pkts;
         else this.pkts = new LinkedBlockingQueue<>();
+        if(event != null) this.event = event;
+        else this.event = new EventEmitter();
         buff = ByteBuffer.allocate(4);
         buff.order(ByteOrder.BIG_ENDIAN);
         in = socket.getInputStream();
         addr = Inet.addr(socket);
         this.socket = socket;
-        this.event = event;
     }
     
     
@@ -75,8 +76,10 @@ public class SocketReader extends Thread {
     // ReadAction ()
     // - read incoming packets
     private void readAction() throws IOException, InterruptedException {
+        int read = 0;
         while(!socket.isClosed()) {
-            int read = in.read(buff.array());
+            try { read = in.read(buff.array()); }
+            catch(IOException e) { continue; }
             if(read < 4) break;
             int size = buff.getInt(0);
             byte[] data = new byte[size];
